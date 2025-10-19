@@ -33,6 +33,8 @@ These are some of the fields in the dataset:
 - **Docker**: Containerizes the application for easy deployment and scalability.
 - **Scripts**: Includes utility scripts for bootstrapping and loading data.
 
+![System Architecture](docs\SystemArchitecture.png)
+
 ## 4. Setup Instructions
 
 ### Prerequisites
