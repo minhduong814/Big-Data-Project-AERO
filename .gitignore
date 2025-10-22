@@ -1,0 +1,5 @@
+/downloads
+/key
+__pycache__
+/.vscode
+.env
