@@ -2,4 +2,7 @@
 /key
 __pycache__
 /.vscode
-.env
+.env/
+/google-cloud-sdk/
+*.log
+*.pyc
