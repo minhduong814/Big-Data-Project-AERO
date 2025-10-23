@@ -18,7 +18,7 @@ def create_dataproc_cluster():
 @task
 def submit_spark_cleaning_job():
     command = """
-    gcloud dataproc jobs submit pyspark gs://bk9999airline/scripts/clean_data.py \
+    gcloud dataproc jobs submit pyspark gs://aero_data/scripts/clean_data.py \
         --cluster=flight-clean-data \
         --region=asia-east2 \
         --project=double-arbor-475907-s5
