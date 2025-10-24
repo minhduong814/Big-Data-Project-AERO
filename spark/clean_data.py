@@ -1,11 +1,26 @@
+import os 
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv(dotenv_path=".env.local")
 
 # Initialize SparkSession
-spark = SparkSession.builder.appName("CleanFlightData").getOrCreate()
+key_path = os.path.abspath("key/double-arbor-475907-s5-75ee7fda0a13.json")
+spark = SparkSession.builder \
+    .appName("CleanFilesData") \
+    .config("spark.jars.packages", "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.22") \
+    .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem") \
+    .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS") \
+    .config("spark.hadoop.google.cloud.auth.service.account.enable", "true") \
+    .config("spark.hadoop.google.cloud.auth.service.account.json.keyfile", key_path) \
+    .config("spark.hadoop.fs.gs.auth.service.account.json.keyfile", key_path) \
+    .config("spark.hadoop.fs.gs.project.id", "double-arbor-475907-s5") \
+    .getOrCreate()
 
 # Path to the file in the bucket
-file_path = "gs://bk9999airline/airline_full.csv"
+file_path = "gs://aero_data/airline_full.csv"
 
 # Define the columns to retain
 COMMON_VALUE = [
@@ -63,7 +78,7 @@ raw_data = spark.read.csv(file_path, header=True, inferSchema=True)
 cleaned_data = clean_flight_data(raw_data)
 
 # Save the cleaned data back to Google Cloud Storage (optional)
-output_path = "gs://bk9999airline/new_cleaned_airline_data"
+output_path = "gs://aero_data/new_cleaned_airline_data"
 cleaned_data.write.mode("overwrite").parquet(output_path)
 
 print(f"Cleaned data saved to {output_path}")

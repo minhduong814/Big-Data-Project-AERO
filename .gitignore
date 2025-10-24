@@ -6,3 +6,4 @@ __pycache__
 /system_module/
 .env.*
 /Java/
+*.jar

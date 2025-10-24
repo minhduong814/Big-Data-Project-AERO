@@ -1,11 +1,18 @@
 from google.cloud import storage
+from google.oauth2 import service_account
+import os
 
 BUCKET_NAME = "aero_data"
 def bucket_metadata(bucket_name):
     """Prints out a bucket's metadata."""
     # bucket_name = 'your-bucket-name'
-
-    storage_client = storage.Client()
+    # Load credentials from the JSON key file
+    credentials = service_account.Credentials.from_service_account_file(
+        'key/double-arbor-475907-s5-75ee7fda0a13.json'
+    )
+    storage_client = storage.Client(
+        credentials=credentials
+    )
     bucket = storage_client.get_bucket(bucket_name)
 
     print(f"ID: {bucket.id}")
