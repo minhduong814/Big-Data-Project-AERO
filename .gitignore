@@ -3,8 +3,6 @@
 __pycache__
 /.vscode
 .env/
-/google-cloud-sdk/
-*.log
-*.pyc
-/jdk-*/
+/system_module/
 .env.*
+/Java/
