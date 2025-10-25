@@ -6,12 +6,11 @@ import tempfile
 from google.cloud import storage
 from prefect import task
 
-json_credentials_path=os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+json_credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 storage_client = storage.Client.from_service_account_json(
     json_credentials_path=json_credentials_path,
     project="double-arbor-475907-s5"
 )
-
 
 
 @task
@@ -30,60 +29,81 @@ def collect_data_to_gcs(year, month, bucket_name):
         "CANCELLATION_CODE"
     ]
 
-    # Start a session to persist cookies
-    session = requests.Session()
-    response = session.get(url)
-    soup = BeautifulSoup(response.content, "html.parser")
+    try:
+        # Start a session to persist cookies
+        session = requests.Session()
+        response = session.get(url)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "html.parser")
 
-    # Prepare form data
-    form_data = {}
-    for hidden_field in soup.find_all("input", {"type": "hidden"}):
-        form_data[hidden_field.get("name")] = hidden_field.get("value", "")
+        # Prepare form data
+        form_data = {}
+        for hidden_field in soup.find_all("input", {"type": "hidden"}):
+            form_data[hidden_field.get("name")] = hidden_field.get("value", "")
 
-    for field in fields_to_select:
-        form_data[field] = "on"
-    form_data["cboYear"] = str(year)
-    form_data["cboPeriod"] = str(month)
-    form_data["chkDownloadZip"] = "on"
-    form_data["btnDownload"] = "Download"
+        for field in fields_to_select:
+            form_data[field] = "on"
+        form_data["cboYear"] = str(year)
+        form_data["cboPeriod"] = str(month)
+        form_data["chkDownloadZip"] = "on"
+        form_data["btnDownload"] = "Download"
 
-    download_url = "https://www.transtats.bts.gov/DL_SelectFields.aspx"
-    download_response = session.post(download_url, data=form_data, stream=True)
+        download_url = "https://www.transtats.bts.gov/DL_SelectFields.aspx"
+        download_response = session.post(download_url, data=form_data, stream=True)
+        download_response.raise_for_status()
 
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        zip_path = os.path.join(tmp_dir, f"{year}_{month}.zip")
-        with open(zip_path, "wb") as f:
-            for chunk in download_response.iter_content(chunk_size=1024):
-                if chunk:
-                    f.write(chunk)
-        print(f"📦 Downloaded ZIP to {zip_path}")
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = os.path.join(tmp_dir, f"{year}_{month}.zip")
+            with open(zip_path, "wb") as f:
+                for chunk in download_response.iter_content(chunk_size=1024):
+                    if chunk:
+                        f.write(chunk)
+            print(f"📦 Downloaded ZIP to {zip_path}")
 
-        # Extract ZIP contents
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(tmp_dir)
+            # Extract ZIP contents
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(tmp_dir)
 
-        # Find the CSV file
-        csv_files = [f for f in os.listdir(tmp_dir) if f.endswith(".csv")]
-        if not csv_files:
-            print("⚠️ No CSV found in downloaded archive.")
-            return
+            # Find the CSV file
+            csv_files = [f for f in os.listdir(tmp_dir) if f.endswith(".csv")]
+            if not csv_files:
+                print("⚠️ No CSV found in downloaded archive.")
+                return
 
-        # Rename the first CSV file to a clean name
-        original_csv_path = os.path.join(tmp_dir, csv_files[0])
-        renamed_csv_path = os.path.join(tmp_dir, f"{year}_{month:02d}.csv")
-        os.rename(original_csv_path, renamed_csv_path)
-        print(f"✅ Renamed {csv_files[0]} → {year}_{month:02d}.csv")
+            # Rename the first CSV file to a clean name
+            original_csv_path = os.path.join(tmp_dir, csv_files[0])
+            renamed_csv_path = os.path.join(tmp_dir, f"{year}_{month:02d}.csv")
+            os.rename(original_csv_path, renamed_csv_path)
+            print(f"✅ Renamed {csv_files[0]} → {year}_{month:02d}.csv")
 
-        bucket = storage_client.lookup_bucket(bucket_name)
-        if bucket is None:
-            print(f"⚠️ Bucket {bucket_name} does not exist.")
-            storage_client.create_bucket(bucket_name, location="asia-east2", user_project="double-arbor-475907-s5")
-            print(f"✅ Created bucket {bucket_name}.")
-            bucket = storage_client.bucket(bucket_name)
-        print(f"🌐 Using bucket: {bucket.name}")
-        print(f"📁 Bucket location: {bucket.location}")
-        blob_path = f"{year}_{month:02d}.csv"
-        blob = bucket.blob(blob_path)
-        blob.upload_from_filename(renamed_csv_path)
+            # Handle bucket creation/retrieval
+            bucket = storage_client.lookup_bucket(bucket_name)
+            if bucket is None:
+                print(f"⚠️ Bucket {bucket_name} does not exist. Creating...")
+                bucket = storage_client.create_bucket(
+                    bucket_name,
+                    location="asia-east2"
+                )
+                print(f"✅ Created bucket {bucket_name} in {bucket.location}")
+            else:
+                print(f"🌐 Using existing bucket: {bucket.name}")
+            
+            print(f"📁 Bucket location: {bucket.location}")
+            
+            # Fixed: blob_path should not include bucket name
+            blob_path = f"{year}_{month:02d}.csv"
+            blob = bucket.blob(blob_path)
+            blob.upload_from_filename(renamed_csv_path)
 
-        print(f"☁️ Uploaded to: gs://{bucket_name}/{blob_path}")
+            print(f"☁️ Uploaded to: gs://{bucket_name}/{blob_path}")
+            return f"gs://{bucket_name}/{blob_path}"
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Error downloading data: {e}")
+        raise
+    except zipfile.BadZipFile as e:
+        print(f"❌ Error extracting ZIP: {e}")
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        raise
