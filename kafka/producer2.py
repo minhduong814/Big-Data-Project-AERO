@@ -1,7 +1,7 @@
 import os
 
 from utils import *
-#from settings import KAFKA_ADDRESS
+from settings import KAFKA_ADDRESS
 from json_producer import setting_up, process_data_from_api, request_data
 import time
 import pandas as pd
@@ -11,7 +11,7 @@ if __name__=="__main__":
     producer = setting_up(bootstrap_servers=KAFKA_ADDRESS, topic="flights")
     access_key = os.environ.get("ACCESS_KEY", "0f1f4a0ab47894952b1e301b3f928910")
 
-    url = "http://api.aviationstack.com/v1/flights"
+    url = "https://www.transtats.bts.gov/DL_SelectFields.aspx"
 
     dirpath = os.path.dirname(os.path.abspath(__file__))
     # Read the CSV file into a DataFrame

@@ -7,12 +7,12 @@ from pyspark.sql.types import (
 )
 import os
 
-PROJECT_ID = 'totemic-program-442307-i9'
+PROJECT_ID = 'double-arbor-475907-s5'
 CONSUME_TOPIC_FLIGHTS = 'flights'
 KAFKA_ADDRESS= "35.240.239.52"
 KAFKA_BOOTSTRAP_SERVERS = f'{KAFKA_ADDRESS}:9092,{KAFKA_ADDRESS}:9093,{KAFKA_ADDRESS}:9094'
 
-GCP_GCS_BUCKET = "uk-airline-big-data"
+GCP_GCS_BUCKET = "aero_data"
 GCS_STORAGE_PATH = 'gs://' + GCP_GCS_BUCKET + '/realtime2'
 CHECKPOINT_PATH = 'gs://' + GCP_GCS_BUCKET + '/realtime2/checkpoint/'
 CHECKPOINT_PATH_BQ = 'gs://' + GCP_GCS_BUCKET + '/realtime2/checkpoint_bq/'

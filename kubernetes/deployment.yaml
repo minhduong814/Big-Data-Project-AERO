@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: big-data-project-aero
-        image: big-data-project-aero:latest
+        image: gcr.io/double-arbor-475907-s5/big-data-project-aero:latest
         ports:
         - containerPort: 8080
         env:
@@ -24,12 +24,8 @@ spec:
           value: "1"
         - name: PYTHONDONTWRITEBYTECODE
           value: "1"
-        volumeMounts:
-        - name: app-volume
-          mountPath: /app
-      volumes:
-      - name: app-volume
-        emptyDir: {}
+      imagePullSecrets:
+      - name: gcr-json-key
 ---
 apiVersion: v1
 kind: Service
