@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: big-data-project-aero
+  labels:
+    app: big-data-project-aero
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: big-data-project-aero
+  template:
+    metadata:
+      labels:
+        app: big-data-project-aero
+    spec:
+      containers:
+      - name: big-data-project-aero
+        image: big-data-project-aero:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        volumeMounts:
+        - name: app-volume
+          mountPath: /app
+      volumes:
+      - name: app-volume
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: big-data-project-aero-service
+spec:
+  selector:
+    app: big-data-project-aero
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: ClusterIP
