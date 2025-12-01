@@ -1,0 +1,14 @@
+/downloads
+/key
+__pycache__
+/.vscode
+.env/
+/google-cloud-sdk/
+*.log
+*.pyc
+.gcloud/
+.terraform/
+*.exe
+.venv/
+.*
+jar/
