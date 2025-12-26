@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aero-producer
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aero-producer
+  template:
+    metadata:
+      labels:
+        app: aero-producer
+    spec:
+      containers:
+      - name: producer
+        image: gcr.io/aero-project-2025/aero-app:latest
+        command: ["python", "kafka/producer.py"]
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "my-cluster-kafka-bootstrap.kafka.svc:9092"
+        - name: AVIATION_STACK_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aero-secrets
+              key: aviation-stack-api-key
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aero-consumer
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aero-consumer
+  template:
+    metadata:
+      labels:
+        app: aero-consumer
+    spec:
+      containers:
+      - name: consumer
+        image: gcr.io/aero-project-2025/aero-app:latest
+        command: ["python", "kafka/consumer.py"]
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: "my-cluster-kafka-bootstrap.kafka.svc:9092"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
+        volumeMounts:
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+          readOnly: true
+      volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: gcp-service-account
