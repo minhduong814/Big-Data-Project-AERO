@@ -1,45 +1,46 @@
-from prefect import flow, task
-from prefect_shell import shell_run_command
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, when, trim, upper
 
-@task
-def create_dataproc_cluster():
-    command = """
-    gcloud dataproc clusters create flight-clean-data \
-        --region asia-east2 \
-        --master-machine-type n2-standard-2 \
-        --master-boot-disk-size 130GB \
-        --num-workers 2 \
-        --worker-machine-type n2-standard-2 \
-        --worker-boot-disk-size 130GB \
-        --project double-arbor-475907-s5
-    """
-    shell_run_command(command)
-
-@task
-def submit_spark_cleaning_job():
-    command = """
-    gcloud dataproc jobs submit pyspark gs://aero_data/scripts/clean_data.py \
-        --cluster=flight-clean-data \
-        --region=asia-east2 \
-        --project=double-arbor-475907-s5
-    """
-    shell_run_command(command)
-
-@task
-def delete_dataproc_cluster():
-    command = """
-    gcloud dataproc clusters delete flight-clean-data \
-        --region=asia-east2 \
-        --quiet \
-        --project=double-arbor-475907-s5
-    """
-    shell_run_command(command)
-
-@flow
-def clean_flight_data_workflow():
-    create_dataproc_cluster()
-    submit_spark_cleaning_job()
-    delete_dataproc_cluster()
+def main():
+    # Initialize Spark session
+    spark = SparkSession.builder \
+        .appName("FlightDataCleaning") \
+        .getOrCreate()
+    
+    print("=" * 50)
+    print("Starting Flight Data Cleaning Job")
+    print("=" * 50)
+    
+    # Read raw data from GCS
+    input_path = "gs://aero_data/full_data.parquet"
+    output_path = "gs://aero_data/cleaned_data/"
+    
+    print(f"Reading data from: {input_path}")
+    df = spark.read.parquet(input_path)
+    
+    print(f"Original row count: {df.count()}")
+    
+    # Data cleaning operations
+    df_cleaned = df \
+        .dropDuplicates() \
+        .dropna(subset=["flight_id", "departure_time", "arrival_time"])
+    
+    # Example: trim whitespace from string columns
+    # df_cleaned = df_cleaned.withColumn("airline", trim(col("airline")))
+    
+    print(f"Cleaned row count: {df_cleaned.count()}")
+    
+    # Write cleaned data to GCS
+    print(f"Writing cleaned data to: {output_path}")
+    df_cleaned.write \
+        .mode("overwrite") \
+        .parquet(output_path)
+    
+    print("=" * 50)
+    print("Flight Data Cleaning Job Completed!")
+    print("=" * 50)
+    
+    spark.stop()
 
 if __name__ == "__main__":
-    clean_flight_data_workflow()
+    main()
