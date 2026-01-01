@@ -12,7 +12,7 @@ def main():
     print("=" * 50)
     
     # Read raw data from GCS
-    input_path = "gs://aero_data/full_data.parquet"
+    input_path = "gs://aero_data/full_data_new.parquet"
     output_path = "gs://aero_data/cleaned_data/"
     
     print(f"Reading data from: {input_path}")
