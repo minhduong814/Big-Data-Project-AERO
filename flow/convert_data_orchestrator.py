@@ -26,10 +26,10 @@ async def create_converter_cluster():
         --region=asia-east2 \
         --zone=asia-east2-a \
         --master-machine-type=n2-standard-2 \
-        --master-boot-disk-size=100GB \
+        --master-boot-disk-size=50GB \
         --num-workers=2 \
         --worker-machine-type=n2-standard-2 \
-        --worker-boot-disk-size=100GB \
+        --worker-boot-disk-size=50GB \
         --project=double-arbor-475907-s5
     """
     result = await shell_run_command(command, return_all=True)
