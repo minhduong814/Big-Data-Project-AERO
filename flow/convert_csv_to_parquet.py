@@ -9,7 +9,7 @@ def main():
     
     # Read all CSV files from the bucket
     input_path = "gs://aero_data/*.csv"
-    output_path = "gs://aero_data/full_data_new.parquet"
+    output_path = "gs://aero_data/parquet"
     
     try:
         # Read CSV files
@@ -24,7 +24,8 @@ def main():
         
         # Write to parquet
         print(f"Writing to {output_path}...")
-        df.write \
+        df.coalesce(1) \
+            .write \
             .mode("overwrite") \
             .parquet(output_path)
         

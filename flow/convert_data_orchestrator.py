@@ -23,8 +23,8 @@ async def create_converter_cluster():
     logger.info("Creating Dataproc cluster for parquet conversion...")
     command = """
     gcloud dataproc clusters create parquet-converter \
-        --region asia-southeast2 \
-        --zone asia-southeast2-a \
+        --region asia-east2 \
+        --zone asia-east2-a \
         --master-machine-type n2-standard-2 \
         --num-workers 2 \
         --project double-arbor-475907-s5
@@ -35,7 +35,7 @@ async def create_converter_cluster():
     # Verify cluster exists
     verify_command = """
     gcloud dataproc clusters describe parquet-converter \
-        --region=asia-southeast2 \
+        --region=asia-east2 \
         --project=double-arbor-475907-s5 \
         --format="value(status.state)"
     """
@@ -47,9 +47,9 @@ async def submit_conversion_job():
     logger = get_run_logger()
     logger.info("Submitting CSV to Parquet conversion job...")
     command = """
-    gcloud dataproc jobs submit pyspark gs://aero_data/scripts/create_parquet.py \
+    gcloud dataproc jobs submit pyspark flow/convert_csv_to_parquet.py \
         --cluster=parquet-converter \
-        --region=asia-southeast2 \
+        --region=asia-east2 \
         --project=double-arbor-475907-s5
     """
     result = await shell_run_command(command, return_all=True)
@@ -59,7 +59,7 @@ async def submit_conversion_job():
 async def verify_parquet_created():
     logger = get_run_logger()
     logger.info("Verifying parquet file was created...")
-    command = "gsutil ls -lh gs://aero_data/full_data_new.parquet/"
+    command = "gsutil ls -lh gs://aero_data/parquet/"
     result = await shell_run_command(command, return_all=True)
     logger.info(f"Parquet files created: {result}")
 
@@ -69,7 +69,7 @@ async def delete_converter_cluster():
     logger.info("Deleting conversion cluster...")
     command = """
     gcloud dataproc clusters delete parquet-converter \
-        --region=asia-southeast2 \
+        --region=asia-east2 \
         --quiet \
         --project=double-arbor-475907-s5
     """
@@ -84,7 +84,7 @@ async def convert_csv_to_parquet_workflow():
     logger.info("=" * 50)
     
     try:
-        await upload_conversion_script()
+        # await upload_conversion_script()
         await create_converter_cluster()
         await submit_conversion_job()
         await verify_parquet_created()
