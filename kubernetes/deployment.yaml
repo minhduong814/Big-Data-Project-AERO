@@ -1,22 +1,24 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: big-data-project-aero
+  name: kafka-producer
   labels:
-    app: big-data-project-aero
+    app: kafka-producer
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
-      app: big-data-project-aero
+      app: kafka-producer
   template:
     metadata:
       labels:
-        app: big-data-project-aero
+        app: kafka-producer
     spec:
       containers:
-      - name: big-data-project-aero
+      - name: kafka-producer
         image: gcr.io/double-arbor-475907-s5/big-data-project-aero:latest
+        command: ["python", "kafka/producer.py"]
         ports:
         - containerPort: 8080
         env:
@@ -24,18 +26,41 @@ spec:
           value: "1"
         - name: PYTHONDONTWRITEBYTECODE
           value: "1"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
+        envFrom:
+        - configMapRef:
+            name: big-data-project-config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: gcp-key
+          mountPath: /var/secrets/google
+          readOnly: true
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: gcp-key
+        secret:
+          secretName: gcp-credentials
       imagePullSecrets:
       - name: gcr-json-key
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: big-data-project-aero-service
-spec:
-  selector:
-    app: big-data-project-aero
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 8080
-  type: ClusterIP
