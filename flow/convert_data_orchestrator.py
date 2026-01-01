@@ -23,11 +23,14 @@ async def create_converter_cluster():
     logger.info("Creating Dataproc cluster for parquet conversion...")
     command = """
     gcloud dataproc clusters create parquet-converter \
-        --region asia-east2 \
-        --zone asia-east2-a \
-        --master-machine-type n2-standard-2 \
-        --num-workers 2 \
-        --project double-arbor-475907-s5
+        --region=asia-east2 \
+        --zone=asia-east2-a \
+        --master-machine-type=n2-standard-2 \
+        --master-boot-disk-size=100GB \
+        --num-workers=2 \
+        --worker-machine-type=n2-standard-2 \
+        --worker-boot-disk-size=100GB \
+        --project=double-arbor-475907-s5
     """
     result = await shell_run_command(command, return_all=True)
     logger.info(f"Cluster creation completed successfully")
