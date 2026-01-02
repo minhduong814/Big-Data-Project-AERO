@@ -53,10 +53,26 @@ async def submit_conversion_job():
     gcloud dataproc jobs submit pyspark flow/convert_csv_to_parquet.py \
         --cluster=parquet-converter \
         --region=asia-east2 \
-        --project=double-arbor-475907-s5
+        --project=double-arbor-475907-s5 \
+        --format="value(reference.jobId)"
     """
     result = await shell_run_command(command, return_all=True)
-    logger.info(f"Job submitted successfully")
+    job_id = result.stdout.strip()
+    logger.info(f"Job submitted successfully. Job ID: {job_id}")
+    
+    # Wait for job and stream logs
+    wait_command = f"""
+    gcloud dataproc jobs wait {job_id} \
+        --region=asia-east2 \
+        --project=double-arbor-475907-s5
+    """
+    wait_result = await shell_run_command(wait_command, return_all=True)
+    logger.info(f"Job output:\n{wait_result.stdout}")
+    
+    if wait_result.stderr:
+        logger.warning(f"Job stderr:\n{wait_result.stderr}")
+    
+    return job_id
 
 @task
 async def verify_parquet_created():
