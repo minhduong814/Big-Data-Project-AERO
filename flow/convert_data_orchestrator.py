@@ -2,20 +2,6 @@ from prefect import flow, task, get_run_logger
 from prefect_shell import shell_run_command
 import asyncio
 
-@task
-async def upload_conversion_script():
-    logger = get_run_logger()
-    logger.info("Uploading CSV to Parquet conversion script to GCS...")
-    command = """
-    gsutil cp /home/quangminh/Documents/code/Python/Big-Data-Project-AERO/scripts/create_parquet.py gs://aero_data/scripts/
-    """
-    result = await shell_run_command(command, return_all=True)
-    logger.info(f"Upload completed. Verifying file exists...")
-    
-    # Verify the upload
-    verify_command = "gsutil ls -l gs://aero_data/scripts/create_parquet.py"
-    verify_result = await shell_run_command(verify_command, return_all=True)
-    logger.info(f"Verification result: {verify_result}")
 
 @task
 async def create_converter_cluster():
@@ -25,11 +11,12 @@ async def create_converter_cluster():
     gcloud dataproc clusters create parquet-converter \
         --region=asia-east2 \
         --zone=asia-east2-a \
-        --master-machine-type=n2-standard-2 \
+        --master-machine-type=n2-standard-4 \
         --master-boot-disk-size=50GB \
         --num-workers=2 \
-        --worker-machine-type=n2-standard-2 \
+        --worker-machine-type=n2-standard-4 \
         --worker-boot-disk-size=50GB \
+        --properties=spark:spark.executor.memory=4g,spark:spark.driver.memory=4g,spark:spark.executor.memoryOverhead=1g,spark:spark.sql.shuffle.partitions=200 \
         --project=double-arbor-475907-s5
     """
     result = await shell_run_command(command, return_all=True)
@@ -61,6 +48,7 @@ async def submit_conversion_job():
     logger.info(f"Job submitted successfully. Job ID: {job_id}")
     
     # Wait for job and stream logs
+    logger.info("Waiting for job to complete and streaming logs...")
     wait_command = f"""
     gcloud dataproc jobs wait {job_id} \
         --region=asia-east2 \
@@ -75,12 +63,50 @@ async def submit_conversion_job():
     return job_id
 
 @task
+async def submit_cleaning_job():
+    logger = get_run_logger()
+    logger.info("Submitting data cleaning job...")
+    command = """
+    gcloud dataproc jobs submit pyspark flow/clean_data.py \
+        --cluster=parquet-converter \
+        --region=asia-east2 \
+        --project=double-arbor-475907-s5 \
+        --format="value(reference.jobId)"
+    """
+    result = await shell_run_command(command, return_all=True)
+    job_id = result.stdout.strip()
+    logger.info(f"Cleaning job submitted successfully. Job ID: {job_id}")
+    
+    # Wait for job and stream logs
+    logger.info("Waiting for cleaning job to complete and streaming logs...")
+    wait_command = f"""
+    gcloud dataproc jobs wait {job_id} \
+        --region=asia-east2 \
+        --project=double-arbor-475907-s5
+    """
+    wait_result = await shell_run_command(wait_command, return_all=True)
+    logger.info(f"Cleaning job output:\n{wait_result.stdout}")
+    
+    if wait_result.stderr:
+        logger.warning(f"Cleaning job stderr:\n{wait_result.stderr}")
+    
+    return job_id
+
+@task
 async def verify_parquet_created():
     logger = get_run_logger()
     logger.info("Verifying parquet file was created...")
     command = "gsutil ls -lh gs://aero_data/parquet/"
     result = await shell_run_command(command, return_all=True)
-    logger.info(f"Parquet files created: {result}")
+    logger.info(f"Parquet files created:\n{result.stdout}")
+
+@task
+async def verify_cleaned_data():
+    logger = get_run_logger()
+    logger.info("Verifying cleaned data was created...")
+    command = "gsutil ls -lh gs://aero_data/cleaned_data/"
+    result = await shell_run_command(command, return_all=True)
+    logger.info(f"Cleaned data files:\n{result.stdout}")
 
 @task
 async def delete_converter_cluster():
@@ -103,12 +129,18 @@ async def convert_csv_to_parquet_workflow():
     logger.info("=" * 50)
     
     try:
-        # await upload_conversion_script()
         await create_converter_cluster()
-        await submit_conversion_job()
+        conversion_job_id = await submit_conversion_job()
         await verify_parquet_created()
+        
+        # Run cleaning job on the converted data
+        cleaning_job_id = await submit_cleaning_job()
+        await verify_cleaned_data()
+        
         logger.info("=" * 50)
-        logger.info("Conversion workflow completed successfully!")
+        logger.info(f"Workflow completed successfully!")
+        logger.info(f"Conversion Job ID: {conversion_job_id}")
+        logger.info(f"Cleaning Job ID: {cleaning_job_id}")
         logger.info("=" * 50)
     except Exception as e:
         logger.error(f"Conversion workflow failed: {e}")
