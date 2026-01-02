@@ -44,7 +44,8 @@ async def submit_conversion_job():
         --format="value(reference.jobId)"
     """
     result = await shell_run_command(command, return_all=True)
-    job_id = result.stdout.strip()
+    # result is a list: [stdout, stderr, return_code]
+    job_id = result[0].strip() if result[0] else ""
     logger.info(f"Job submitted successfully. Job ID: {job_id}")
     
     # Wait for job and stream logs
@@ -55,10 +56,10 @@ async def submit_conversion_job():
         --project=double-arbor-475907-s5
     """
     wait_result = await shell_run_command(wait_command, return_all=True)
-    logger.info(f"Job output:\n{wait_result.stdout}")
+    logger.info(f"Job output:\n{wait_result[0]}")
     
-    if wait_result.stderr:
-        logger.warning(f"Job stderr:\n{wait_result.stderr}")
+    if wait_result[1]:
+        logger.warning(f"Job stderr:\n{wait_result[1]}")
     
     return job_id
 
@@ -74,7 +75,8 @@ async def submit_cleaning_job():
         --format="value(reference.jobId)"
     """
     result = await shell_run_command(command, return_all=True)
-    job_id = result.stdout.strip()
+    # result is a list: [stdout, stderr, return_code]
+    job_id = result[0].strip() if result[0] else ""
     logger.info(f"Cleaning job submitted successfully. Job ID: {job_id}")
     
     # Wait for job and stream logs
@@ -85,10 +87,10 @@ async def submit_cleaning_job():
         --project=double-arbor-475907-s5
     """
     wait_result = await shell_run_command(wait_command, return_all=True)
-    logger.info(f"Cleaning job output:\n{wait_result.stdout}")
+    logger.info(f"Cleaning job output:\n{wait_result[0]}")
     
-    if wait_result.stderr:
-        logger.warning(f"Cleaning job stderr:\n{wait_result.stderr}")
+    if wait_result[1]:
+        logger.warning(f"Cleaning job stderr:\n{wait_result[1]}")
     
     return job_id
 
@@ -98,7 +100,7 @@ async def verify_parquet_created():
     logger.info("Verifying parquet file was created...")
     command = "gsutil ls -lh gs://aero_data/parquet/"
     result = await shell_run_command(command, return_all=True)
-    logger.info(f"Parquet files created:\n{result.stdout}")
+    logger.info(f"Parquet files created:\n{result[0]}")
 
 @task
 async def verify_cleaned_data():
@@ -106,7 +108,7 @@ async def verify_cleaned_data():
     logger.info("Verifying cleaned data was created...")
     command = "gsutil ls -lh gs://aero_data/cleaned_data/"
     result = await shell_run_command(command, return_all=True)
-    logger.info(f"Cleaned data files:\n{result.stdout}")
+    logger.info(f"Cleaned data files:\n{result[0]}")
 
 @task
 async def delete_converter_cluster():
