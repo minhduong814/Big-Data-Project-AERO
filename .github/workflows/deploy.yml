@@ -9,8 +9,8 @@ env:
   REGISTRY_REGION: asia              # Artifact Registry region
   CLOUD_RUN_REGION: asia-east1       # Cloud Run region
   REPO_NAME: asia-service                         # Your Artifact Registry Repo Name
-  IMAGE_NAME: us_bearu             # Name for the docker image
-  SERVICE_NAME: us_bearu       # Name for the Cloud Run service
+  IMAGE_NAME: us-bearu             # Name for the docker image
+  SERVICE_NAME: us-bearu       # Name for the Cloud Run service
 
   VM_NAME: teencare
   VM_ZONE: asia-east2-a
@@ -94,7 +94,7 @@ jobs:
 
           # aviation stack folder
           gcloud compute scp --zone ${{ env.VM_ZONE }} \
-            --rercurse ./aviation_stack/ \
+            --recurse ./aviation_stack/ \
             ${{ env.VM_NAME }}:~/big_data/
 
       - name: Deploy with Docker Compose
