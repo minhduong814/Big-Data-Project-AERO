@@ -16,10 +16,7 @@ from google.api_core import exceptions
 
 router = APIRouter()
 
-json_credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-storage_client = storage.Client.from_service_account_json(
-    json_credentials_path=json_credentials_path, project="double-arbor-475907-s5"
-)
+storage_client = storage.Client(project="double-arbor-475907-s5")
 
 #!/usr/bin/env python3
 """
