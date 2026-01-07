@@ -92,11 +92,6 @@ jobs:
           # Create app directory if not exists
           gcloud compute ssh ${{ env.VM_NAME }} --zone ${{ env.VM_ZONE }} --command 'mkdir -p ~/big_data'
 
-          # credentials files
-          gcloud compute scp --zone ${{ env.VM_ZONE }} \
-            .credentials.json \
-            ${{ env.VM_NAME }}:~/big_data/
-
           # aviation stack folder
           gcloud compute scp --zone ${{ env.VM_ZONE }} \
             --rercurse ./aviation_stack/ \
