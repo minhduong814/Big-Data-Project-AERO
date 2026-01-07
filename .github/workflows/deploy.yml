@@ -103,3 +103,4 @@ jobs:
             cd ~/big_data/aviation_stack
 
             bash docker-setup.sh
+          '
