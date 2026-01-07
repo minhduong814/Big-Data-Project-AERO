@@ -1,0 +1,13 @@
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+WORKDIR /app
+
+# 3. Copy *only* the requirements file first to cache dependencies
+COPY pyproject.toml .
+RUN uv sync --no-dev
+
+# 4. Copy your *entire* 'app' folder into the container's working directory
+COPY . .
+
+ENV PORT=8080
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

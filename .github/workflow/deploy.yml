@@ -1,0 +1,110 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGISTRY_REGION: asia              # Artifact Registry region
+  CLOUD_RUN_REGION: asia-east1       # Cloud Run region
+  REPO_NAME: asia-service                         # Your Artifact Registry Repo Name
+  IMAGE_NAME: us_bearu             # Name for the docker image
+  SERVICE_NAME: us_bearu       # Name for the Cloud Run service
+
+  VM_NAME: teencare
+  VM_ZONE: asia-east2-a
+
+jobs:
+  cloud-run-deploy:
+    runs-on: ubuntu-latest
+
+    if: ${{ !contains(github.event.head_commit.message, 'skip-deployment') }}
+
+    steps:
+      # 1. Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Authenticate with Google Cloud
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          token_format: 'access_token' # Required for Docker login
+
+      # 3. Log in to Artifact Registry
+      # Uses the token from the previous step to log in to Docker
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      # 4. Set image URL
+      - name: Set image URL
+        id: image_url
+        run: echo "url=${{ env.REGISTRY_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      # 5. Build and Push Docker Image
+      - name: Build and Push Container
+        run: |
+          cd us_bearu_monthly
+          docker build -t "${{ steps.image_url.outputs.url }}" .
+          docker push "${{ steps.image_url.outputs.url }}"
+
+      # 6. Deploy to Cloud Run
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.CLOUD_RUN_REGION }}
+          image: ${{ steps.image_url.outputs.url }}
+          flags: '--allow-unauthenticated'
+
+  vm-instance-deploy:
+    runs-on: ubuntu-latest
+
+
+    if: ${{ !contains(github.event.head_commit.message, 'skip-deployment') }}
+
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Copy files to GCE
+        run: |
+          # Create app directory if not exists
+          gcloud compute ssh ${{ env.VM_NAME }} --zone ${{ env.VM_ZONE }} --command 'mkdir -p ~/big_data'
+
+          # credentials files
+          gcloud compute scp --zone ${{ env.VM_ZONE }} \
+            .credentials.json \
+            ${{ env.VM_NAME }}:~/big_data/
+
+          # aviation stack folder
+          gcloud compute scp --zone ${{ env.VM_ZONE }} \
+            --rercurse ./aviation_stack/ \
+            ${{ env.VM_NAME }}:~/big_data/
+
+      - name: Deploy with Docker Compose
+        run: |
+          gcloud compute ssh ${{ env.VM_NAME }} --zone ${{ env.VM_ZONE }} --command '
+            cd ~/big_data/aviation_stack
+
+            bash docker-setup.sh
