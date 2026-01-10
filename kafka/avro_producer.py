@@ -81,9 +81,9 @@ if __name__ == "__main__":
     value_schema_file = os.path.join(path,"flight-value.avsc")     # Update with your value schema file
 
     utils.configure_logging()
-    schema_registry_url = "http://localhost:8081"
-    bootstrap_servers = "localhost:9092"
-    topic = "flights"
+    schema_registry_url = os.getenv("SCHEMA_REGISTRY_URL", "http://localhost:8081")
+    bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    topic = os.getenv("KAFKA_TOPIC", "flights")
     schema_type = "AVRO"
 
     # Create Topic

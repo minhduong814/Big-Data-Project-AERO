@@ -49,9 +49,27 @@ def collect_data(year, month, output_dir="./downloads/"):
     # Add the download button
     form_data["btnDownload"] = "Download"
 
-    # Submit the form
+    # Submit the form with retries and exponential backoff
+    import time
     download_url = "https://www.transtats.bts.gov/DL_SelectFields.aspx"
-    download_response = session.post(download_url, data=form_data, stream=True)
+    max_attempts = 3
+    download_response = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            download_response = session.post(download_url, data=form_data, stream=True)
+            if download_response.status_code == 200:
+                break
+            else:
+                print(f"Attempt {attempt} failed with status {download_response.status_code}. Retrying...")
+                time.sleep(2 ** attempt)
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt} raised an exception: {e}. Retrying...")
+            time.sleep(2 ** attempt)
+
+    if download_response is None:
+        raise Exception("Failed to download after multiple attempts")
+
+    download_response.raise_for_status()
 
     # Create the directory if it does not exist
     os.makedirs(output_dir, exist_ok=True)

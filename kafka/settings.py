@@ -2,12 +2,15 @@ from pyspark.sql.types import (
     StructType, StructField, StringType, DateType, IntegerType, TimestampType
 )
 
-BOOTSTRAP_SERVERS = ['localhost:9092', 'localhost:9093',]
+import os
 
-PRODUCE_TOPIC_FLIGHTS = CONSUME_TOPIC_FLIGHTS = 'flight'
+# Read critical configuration from environment (see .env.example)
+BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092,localhost:9093").split(",")
 
-AS_API_KEY = "7a261a4fd48779425e4a75783f089b68"
-FLIGHT_URL = "http://api.aviationstack.com/v1/flights"
+PRODUCE_TOPIC_FLIGHTS = CONSUME_TOPIC_FLIGHTS = os.getenv("KAFKA_TOPIC", "flight")
+
+AS_API_KEY = os.getenv("AVIATIONSTACK_API_KEY", None)
+FLIGHT_URL = os.getenv("AVIATIONSTACK_URL", "http://api.aviationstack.com/v1/flights")
 
 # Flights Table Schema
 FLIGHT_SCHEMA = StructType([

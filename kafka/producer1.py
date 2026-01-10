@@ -7,8 +7,9 @@ from json_producer import setting_up, process_data_from_api, request_data
 import time
 import pandas as pd
 
-KAFKA_ADDRESS = "35.240.239.52:9092"
+KAFKA_ADDRESS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 if __name__=="__main__":
+
     producer = setting_up(bootstrap_servers=KAFKA_ADDRESS, topic="flights")
     access_key = os.environ.get("ACCESS_KEY", "0f1f4a0ab47894952b1e301b3f928910")
 
