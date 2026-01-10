@@ -83,7 +83,9 @@ def collect_data(year, month, output_dir="./downloads/"):
             if chunk:
                 f.write(chunk)
 
-    print(f"Data downloaded and saved to: {output_file}")
+    import logging
+    logger = logging.getLogger("flow.collect_data")
+    logger.info(f"Data downloaded and saved to: {output_file}")
 
     # Extract the ZIP file
     zip_file_path = output_file
@@ -94,20 +96,20 @@ def collect_data(year, month, output_dir="./downloads/"):
             extract_path = os.path.join(output_dir, "extracted")
             os.makedirs(extract_path, exist_ok=True)
             zip_ref.extractall(extract_path)
-            print(f"Files extracted to: {extract_path}")
+            logger.info(f"Files extracted to: {extract_path}")
         
         # Ensure the ZIP file is properly closed before deleting
         del zip_ref  # Explicitly delete the zipfile object
 
         # Cleanup: Remove the ZIP file after extraction
         os.remove(zip_file_path)
-        print(f"Removed ZIP file: {zip_file_path}")
+        logger.info(f"Removed ZIP file: {zip_file_path}")
 
         # Remove unrelated extracted files (except for CSV)
         for extracted_file in os.listdir(extract_path):
             extracted_file_path = os.path.join(extract_path, extracted_file)
             if not extracted_file.endswith('.csv'):
                 os.remove(extracted_file_path)
-                print(f"Removed extracted file: {extracted_file_path}")
+                logger.debug(f"Removed extracted file: {extracted_file_path}")
     else:
-        print(f"ZIP file not found at {zip_file_path}.")
+        logger.warning(f"ZIP file not found at {zip_file_path}.")

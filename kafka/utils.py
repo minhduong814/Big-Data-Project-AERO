@@ -4,11 +4,16 @@ from dotenv import load_dotenv
 
 import logging
 
+
 def configure_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    """Configure a consistent logging format for the application."""
+    level = os.getenv("LOG_LEVEL", "INFO").upper()
+    fmt = os.getenv(
+        "LOG_FORMAT",
+        "%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     )
+    logging.basicConfig(level=level, format=fmt)
+
 
 def load_env():
     """Loads environment variables from a .env file"""
@@ -16,10 +21,16 @@ def load_env():
     dotenv_path = os.path.join(os.path.dirname(__file__), "../.env")
     load_dotenv(dotenv_path)
 
+
 def delivery_report(err, msg):
+    logger = logging.getLogger("kafka.delivery")
     if err is not None:
-        print(f"Delivery failed for record {msg.key()}: {err}")
+        logger.error("Delivery failed for record %s: %s", msg.key(), err)
     else:
-        print(
-            f"Record {msg.key()} successfully produced to {msg.topic()} [{msg.partition()}] at offset {msg.offset()}"
+        logger.info(
+            "Record %s successfully produced to %s [%s] at offset %s",
+            msg.key(),
+            msg.topic(),
+            msg.partition(),
+            msg.offset(),
         )

@@ -17,14 +17,7 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-# Function to rename the files
-def rename_files(extracted_dir, year, month):
-    for file_name in os.listdir(extracted_dir):
-        if file_name.startswith("On_Time_Reporting_Carrier_On_Time_Performance"):
-            old_file_path = os.path.join(extracted_dir, file_name)
-            new_file_path = os.path.join(extracted_dir, f"{year}_{month:02d}.csv")
-            os.rename(old_file_path, new_file_path)
-            print(f"Renamed file to: {new_file_path}")
+from flow.helpers import rename_files
 
 # Define a Prefect Flow
 @flow(name="Data Collection Flow")
