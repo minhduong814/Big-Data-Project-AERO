@@ -21,7 +21,9 @@ class ProducerClass:
         waiting_time=None,
     ):
         """Initializes the producer."""
-        self.bootstrap_servers = bootstrap_servers
+        # Allow passing bootstrap_servers or fallback to environment default
+        import os
+        self.bootstrap_servers = bootstrap_servers or os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
         self.topic = topic
         self.producer_conf = {
             "bootstrap.servers": self.bootstrap_servers,

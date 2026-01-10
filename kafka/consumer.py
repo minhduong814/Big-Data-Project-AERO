@@ -48,8 +48,8 @@ if __name__ == "__main__":
     utils.load_env()
     utils.configure_logging()
 
-    bootstrap_server = "35.240.239.52:9092"#os.environ.get("KAFKA_BOOTSTRAP_SERVERS")
-    topic = "flights"#os.environ.get("KAFKA_TOPIC")
-    group_id = 0
+    bootstrap_server = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    topic = os.getenv("KAFKA_TOPIC", "flights")
+    group_id = int(os.getenv("KAFKA_CONSUMER_GROUP", "0"))
     consumer = ConsumerClass(bootstrap_server, topic, group_id)
     consumer.consume_messages()

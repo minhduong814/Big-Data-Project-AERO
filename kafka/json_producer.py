@@ -13,7 +13,7 @@ import json
 #from settings import KAFKA_ADDRESS
 import time
 
-KAFKA_ADDRESS = "localhost:29092"
+KAFKA_ADDRESS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")
 
 class JsonProducer(ProducerClass):
     def __init__(

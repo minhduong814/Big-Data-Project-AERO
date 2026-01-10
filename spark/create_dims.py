@@ -15,7 +15,7 @@ class DataProcessor:
     def __init__(self, spark):
         self.spark = spark
 
-    def load_data(self, file_path="gs://aero_data/cleaned_airline_data"):
+    def load_data(self, file_path="gs://bk9999airline/cleaned_airline_data"):
         """
         Load combined data from the given GCS file path.
         """
