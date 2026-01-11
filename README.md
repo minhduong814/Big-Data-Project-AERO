@@ -33,4 +33,7 @@ These are some of the fields in the dataset:
 - **Scripts**: Includes utility scripts for bootstrapping and loading data.
 
 ## 4. Results
+- [monthly api](https://us-bearu-830457022430.asia-east1.run.app/docs)
+- [realtime: kafka](http://34.92.90.200:9000/)
+- [realtime: spark](http://34.92.90.200:4040)
 - [looker studio](https://lookerstudio.google.com/reporting/081b7d2c-260e-4a14-b09e-cf9e0e2e1da8)
