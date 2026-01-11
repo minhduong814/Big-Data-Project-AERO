@@ -1,0 +1,60 @@
+# Kafka Configuration
+kafka:
+  bootstrap_servers: "kafka:29092"
+  topics:
+    raw: "flights-raw"
+    processed: "flights-processed"
+    aggregated: "flights-aggregated"
+  
+  producer_config:
+    acks: "all"
+    retries: 3
+    compression_type: "gzip"
+    batch_size: 16384
+    linger_ms: 10
+  
+  consumer_config:
+    auto_offset_reset: "earliest"
+    enable_auto_commit: true
+    max_poll_records: 500
+    session_timeout_ms: 30000
+
+# Spark Configuration
+spark:
+  app_name: "AeroDataProcessor"
+  master: "spark://spark-master:7077"
+  checkpoint_location: "/tmp/spark-checkpoint"
+  
+  configs:
+    spark.sql.shuffle.partitions: "200"
+    spark.sql.adaptive.enabled: "true"
+    spark.sql.adaptive.coalescePartitions.enabled: "true"
+    spark.streaming.kafka.maxRatePerPartition: "1000"
+    spark.executor.memory: "4g"
+    spark.executor.cores: "2"
+    spark.driver.memory: "2g"
+
+# GCP Configuration
+gcp:
+  project_id: "double-arbor-475907-s5"
+  region: "us-central1"
+  dataset_id: "aero_dataset"
+  table_id: "flights"
+  credentials_path: "/app/key/double-arbor-475907-s5-a5863b0c230a.json"
+
+# Pipeline Configuration
+pipeline:
+  batch_size: 100
+  max_messages_per_run: 10000
+  processing_time: "10 seconds"
+  
+  # Windowing for aggregations
+  window_duration: "1 hour"
+  slide_duration: "10 minutes"
+  watermark_delay: "10 minutes"
+
+# Monitoring
+monitoring:
+  enable_metrics: true
+  metrics_port: 9090
+  log_level: "INFO"
