@@ -40,8 +40,11 @@ class AeroSparkProcessor:
             self.spark_config = {}
         
         # Initialize Spark session
+        master = self.spark_config.get('master', 'local[*]')
+        
         builder = SparkSession.builder \
             .appName(self.app_name) \
+            .master(master) \
             .config("spark.jars.packages",
                    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,"
                    "org.apache.spark:spark-avro_2.12:3.5.0") \
@@ -52,7 +55,51 @@ class AeroSparkProcessor:
         for key, value in self.spark_config.get('configs', {}).items():
             builder = builder.config(key, value)
         
-        self.spark = builder.getOrCreate()
+        try:
+            self.spark = builder.getOrCreate()
+        except Exception as e:
+            error_msg = str(e)
+            # If cluster mode fails, try local mode as fallback
+            if master != 'local[*]' and 'spark://' in master:
+                self.logger.warning(f"Failed to connect to Spark master {master}, falling back to local mode: {e}")
+                builder = SparkSession.builder \
+                    .appName(self.app_name) \
+                    .master('local[*]') \
+                    .config("spark.sql.streaming.checkpointLocation",
+                           self.spark_config.get('checkpoint_location', '/tmp/checkpoint'))
+                # Only add basic configs for local mode (skip cluster-specific ones)
+                basic_configs = {k: v for k, v in self.spark_config.get('configs', {}).items() 
+                               if not k.startswith('spark.executor')}
+                for key, value in basic_configs.items():
+                    builder = builder.config(key, value)
+                try:
+                    self.spark = builder.getOrCreate()
+                except Exception as local_e:
+                    raise RuntimeError(
+                        f"Failed to initialize Spark in local mode: {local_e}\n"
+                        "This might be due to:\n"
+                        "1. Java not installed (PySpark requires Java 8 or 11)\n"
+                        "2. JAVA_HOME environment variable not set\n"
+                        "3. PySpark installation issues\n\n"
+                        "For local development, ensure Java is installed:\n"
+                        "  - Ubuntu/Debian: sudo apt-get install openjdk-11-jdk\n"
+                        "  - macOS: brew install openjdk@11\n"
+                        "  - Or use Docker: docker-compose -f orchestration/docker-compose.yml up -d"
+                    ) from local_e
+            elif 'spark-submit' in error_msg or 'SPARK_HOME' in error_msg:
+                raise RuntimeError(
+                    f"PySpark initialization failed: {e}\n"
+                    "This usually means:\n"
+                    "1. Java is not installed (PySpark requires Java 8 or 11)\n"
+                    "2. JAVA_HOME environment variable is not set\n\n"
+                    "Solutions:\n"
+                    "  - Install Java: sudo apt-get install openjdk-11-jdk (Linux) or brew install openjdk@11 (macOS)\n"
+                    "  - Set JAVA_HOME: export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64\n"
+                    "  - Or run in Docker where Spark is pre-configured:\n"
+                    "    docker-compose -f orchestration/docker-compose.yml up -d"
+                ) from e
+            else:
+                raise
         self.spark.sparkContext.setLogLevel("WARN")
         
         self.logger.info(f"Spark session initialized: {self.app_name}")

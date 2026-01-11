@@ -14,8 +14,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.extract.kafka_producer import AeroDataProducer, FlightDataExtractor
 from src.load.kafka_consumer import AeroDataLoader
 from src.transform.spark_streaming import AeroSparkProcessor
-from src.visualize.dashboard import FlightDashboard
-from src.visualize.looker_connector import LookerConnector
+from src.utils.config_loader import ConfigLoader
+# Lazy imports for visualization (only needed for visualize mode)
+# from src.visualize.dashboard import FlightDashboard
+# from src.visualize.looker_connector import LookerConnector
 
 logging.basicConfig(
     level=logging.INFO,
@@ -128,6 +130,15 @@ def run_visualization(config: dict) -> None:
     """
     logger.info("Starting data visualization...")
     
+    # Lazy import - only import when visualization is needed
+    try:
+        from src.visualize.dashboard import FlightDashboard
+        from src.visualize.looker_connector import LookerConnector
+    except ImportError as e:
+        logger.error(f"Failed to import visualization modules: {e}")
+        logger.error("Make sure matplotlib and seaborn are installed: pip install matplotlib seaborn")
+        raise
+    
     gcp_config = config.get('gcp', {})
     
     # Create Looker views
@@ -158,8 +169,14 @@ def main():
     )
     parser.add_argument(
         '--config',
-        default='config/pipeline_config.yaml',
-        help='Path to configuration file'
+        default=None,
+        help='Path to configuration file (optional, uses environment detection if not specified)'
+    )
+    parser.add_argument(
+        '--env',
+        choices=['local', 'cloud'],
+        default=None,
+        help='Force environment (local/cloud). Default: auto-detect'
     )
     parser.add_argument(
         '--max-messages',
@@ -169,13 +186,20 @@ def main():
     
     args = parser.parse_args()
     
-    # Load configuration
-    import yaml
+    # Load configuration using environment-aware loader
     try:
-        with open(args.config, 'r') as f:
-            config = yaml.safe_load(f)
-    except FileNotFoundError:
-        logger.error(f"Configuration file not found: {args.config}")
+        if args.env:
+            # Override environment detection
+            os.environ['AERO_ENVIRONMENT'] = args.env
+        
+        config_loader = ConfigLoader()
+        config = config_loader.load_config(args.config)
+        
+        logger.info(f"Loaded configuration for environment: {config.get('environment', 'unknown')}")
+        logger.info(f"Kafka servers: {config_loader.get_kafka_bootstrap_servers(config)}")
+        logger.info(f"Spark master: {config_loader.get_spark_master(config)}")
+    except Exception as e:
+        logger.error(f"Failed to load configuration: {e}", exc_info=True)
         sys.exit(1)
     
     try:

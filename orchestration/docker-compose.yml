@@ -87,7 +87,7 @@ services:
       - SPARK_WORKER_MEMORY=4G
       - SPARK_WORKER_CORES=2
     ports:
-      - "8081:8081"
+      - "8083:8081"  # Map external port 8083 to internal port 8081 (WebUI)
     networks:
       - aero-network
 
@@ -133,8 +133,11 @@ services:
       kafka:
         condition: service_healthy
     environment:
+      - AERO_ENVIRONMENT=local
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - KAFKA_TOPIC=flights-raw
+      - GCP_PROJECT_ID=double-arbor-475907-s5
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/key/double-arbor-475907-s5-a5863b0c230a.json
       - PYTHONPATH=/app
     command: python src/extract/kafka_producer.py
     volumes:
@@ -154,7 +157,10 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      spark-master:
+        condition: service_started
     environment:
+      - AERO_ENVIRONMENT=local
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - KAFKA_TOPIC=flights-processed
       - GCP_PROJECT_ID=double-arbor-475907-s5
@@ -168,6 +174,34 @@ services:
     networks:
       - aero-network
     restart: on-failure
+
+  aero-pipeline:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: aero-pipeline
+    depends_on:
+      kafka:
+        condition: service_healthy
+      spark-master:
+        condition: service_started
+    environment:
+      - AERO_ENVIRONMENT=local
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPARK_MASTER=spark://spark-master:7077
+      - GCP_PROJECT_ID=double-arbor-475907-s5
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/key/double-arbor-475907-s5-a5863b0c230a.json
+      - PYTHONPATH=/app
+    volumes:
+      - ../src:/app/src
+      - ../config:/app/config
+      - ../key:/app/key
+      - ../data:/app/data
+    networks:
+      - aero-network
+    # Don't auto-start - run manually with: docker-compose run aero-pipeline python src/main.py --mode <mode>
+    profiles:
+      - manual
 
 networks:
   aero-network:

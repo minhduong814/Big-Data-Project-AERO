@@ -92,7 +92,8 @@ class AeroDataLoader:
     def consume_and_load(
         self,
         batch_size: int = 100,
-        max_messages: Optional[int] = None
+        max_messages: Optional[int] = None,
+        timeout_ms: int = 5000
     ) -> int:
         """
         Consume messages from Kafka and load to BigQuery
@@ -100,29 +101,73 @@ class AeroDataLoader:
         Args:
             batch_size: Number of messages to batch before loading
             max_messages: Maximum number of messages to process (None = infinite)
+            timeout_ms: Timeout in milliseconds when polling for messages (default: 5000ms = 5s)
             
         Returns:
             int: Total number of messages processed
         """
         batch = []
         total_processed = 0
+        consecutive_empty_polls = 0
+        max_empty_polls = 3  # Exit after 3 consecutive empty polls (15 seconds)
         
         try:
-            for message in self.consumer:
-                batch.append(message.value)
-                total_processed += 1
+            self.logger.info(f"Starting to consume from topic: {self.topic}")
+            self.logger.info(f"Timeout: {timeout_ms}ms, Max messages: {max_messages or 'unlimited'}")
+            
+            while True:
+                # Use poll with timeout instead of blocking iterator
+                message_pack = self.consumer.poll(timeout_ms=timeout_ms)
                 
-                # Load batch when size reached
-                if len(batch) >= batch_size:
-                    self._load_to_bigquery(batch)
-                    batch = []
+                if not message_pack:
+                    # No messages received in this poll
+                    consecutive_empty_polls += 1
+                    
+                    # If we've processed messages before, continue waiting
+                    if total_processed > 0:
+                        consecutive_empty_polls = 0  # Reset counter if we've processed some messages
+                        continue
+                    
+                    # If no messages processed and multiple empty polls, exit gracefully
+                    if consecutive_empty_polls >= max_empty_polls:
+                        self.logger.info(
+                            f"No messages available after {max_empty_polls * timeout_ms / 1000}s. "
+                            f"Topic may be empty. Exiting gracefully."
+                        )
+                        break
+                    
+                    continue
                 
-                # Check if max messages reached
+                # Reset empty poll counter when we get messages
+                consecutive_empty_polls = 0
+                
+                # Process messages from all partitions
+                for topic_partition, messages in message_pack.items():
+                    for message in messages:
+                        try:
+                            batch.append(message.value)
+                            total_processed += 1
+                            
+                            # Load batch when size reached
+                            if len(batch) >= batch_size:
+                                self._load_to_bigquery(batch)
+                                batch = []
+                            
+                            # Check if max messages reached
+                            if max_messages and total_processed >= max_messages:
+                                self.logger.info(f"Reached max_messages limit: {max_messages}")
+                                break
+                            
+                            if total_processed % 1000 == 0:
+                                self.logger.info(f"Processed {total_processed} messages")
+                                
+                        except Exception as e:
+                            self.logger.error(f"Error processing message: {e}")
+                            continue
+                
+                # Break if max messages reached
                 if max_messages and total_processed >= max_messages:
                     break
-                
-                if total_processed % 1000 == 0:
-                    self.logger.info(f"Processed {total_processed} messages")
             
             # Load remaining messages
             if batch:
