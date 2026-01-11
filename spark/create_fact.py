@@ -1,9 +1,12 @@
+import pyspark
+import argparse
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import *
+from pyspark.sql.functions import broadcast
 
-PROJECT_ID = 'double-arbor-475907-s5'
-BUCKET_NAME = 'gs://aero_data/fact/'
+PROJECT_ID = 'totemic-program-442307-i9'
+BUCKET_NAME = 'gs://bk9999airline/fact/'
 BIGQUERY_NAME = 'flightdata'
 
 
@@ -11,7 +14,7 @@ class DataProcessor:
     def __init__(self, spark):
         self.spark = spark
 
-    def load_data(self, file_path="gs://aero_data/cleaned_airline_data"):
+    def load_data(self, file_path="gs://bk9999airline/cleaned_airline_data"):
         """
         Load combined data from the given GCS file path.
         """

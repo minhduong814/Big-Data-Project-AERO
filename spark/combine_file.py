@@ -6,8 +6,8 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # Step 2: Set GCS bucket path (using GCS URI format)
-input_path = "gs://aero_data/*.csv"  # Path to the CSV files in the GCS bucket
-output_path = "gs://aero_data/full_data.parquet"  # Path to save the Parquet file in the GCS bucket
+input_path = "gs://bk9999airline/collect/*.csv"  # Path to the CSV files in the GCS bucket
+output_path = "gs://bk9999airline/full_data.parquet"  # Path to save the Parquet file in the GCS bucket
 
 # Step 3: Read all CSV files from the GCS bucket directory into a single DataFrame
 df = spark.read.option("header", "true").csv(input_path)

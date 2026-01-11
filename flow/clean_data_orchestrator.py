@@ -8,7 +8,7 @@ async def upload_spark_script():
     logger.info("Uploading Spark script to GCS...")
     # Upload the SPARK script, not this Prefect file!
     command = """
-    gsutil cp /home/quangminh/Documents/code/Python/Big-Data-Project-AERO/flow/clean_data.py gs://aero_data/scripts/flow/
+    gsutil cp ./flow/clean_data.py gs://aero_data/scripts/flow/
     """
     result = await shell_run_command(command, return_all=True)
     logger.info(f"Upload result: {result}")
@@ -19,8 +19,8 @@ async def create_dataproc_cluster():
     logger.info("Creating Dataproc cluster...")
     command = """
     gcloud dataproc clusters create flight-clean-data \
-        --region asia-southeast2 \
-        --zone asia-southeast2-a \
+        --region asia-east2 \
+        --zone asia-east2-a \
         --master-machine-type n2-standard-2 \
         --master-boot-disk-size 130GB \
         --num-workers 2 \
@@ -39,7 +39,7 @@ async def submit_spark_cleaning_job():
     command = """
     gcloud dataproc jobs submit pyspark gs://aero_data/scripts/flow/clean_data.py \
         --cluster=flight-clean-data \
-        --region=asia-southeast2 \
+        --region=asia-east2 \
         --project=double-arbor-475907-s5
     """
     result = await shell_run_command(command, return_all=True)
@@ -51,7 +51,7 @@ async def delete_dataproc_cluster():
     logger.info("Deleting Dataproc cluster...")
     command = """
     gcloud dataproc clusters delete flight-clean-data \
-        --region=asia-southeast2 \
+        --region=asia-east2 \
         --quiet \
         --project=double-arbor-475907-s5
     """

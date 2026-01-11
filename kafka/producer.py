@@ -1,58 +1,82 @@
-import sys
+"""The Producer code will manually validate the schema."""
+import logging
 import os
-import json
-import time
-import requests
-from kafka import KafkaProducer
 
-# Add project root to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from confluent_kafka import Producer
 
-from config.settings import Config
+import utils
+from admin import Admin
 
-def fetch_flight_data():
-    """
-    Fetch real-time flight data from Aviation Stack API.
-    """
-    params = {
-        'access_key': Config.AVIATION_STACK_API_KEY,
-        'limit': 100,
-        'flight_status': 'active'
-    }
-    
-    try:
-        # Note: This is a placeholder URL. 
-        # Aviation Stack API endpoint: http://api.aviationstack.com/v1/flights
-        url = "http://api.aviationstack.com/v1/flights"
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-        return data.get('data', [])
-    except Exception as e:
-        print(f"Error fetching data from API: {e}")
-        return []
 
-def run_producer():
-    producer = KafkaProducer(
-        bootstrap_servers=Config.KAFKA_BOOTSTRAP_SERVERS,
-        value_serializer=lambda v: json.dumps(v).encode('utf-8')
-    )
-    
-    print(f"Starting Kafka Producer to topic: {Config.KAFKA_TOPIC}")
-    
-    while True:
-        flights = fetch_flight_data()
-        if flights:
-            print(f"Fetched {len(flights)} flights. Sending to Kafka...")
-            for flight in flights:
-                producer.send(Config.KAFKA_TOPIC, flight)
-            producer.flush()
-        else:
-            print("No flights fetched or error occurred.")
-        
-        # Sleep for a while to avoid hitting API rate limits
-        # Free plan is usually limited, so sleep 60 seconds or more
-        time.sleep(60)
+class ProducerClass:
+    """Producer class for sending messages to Kafka."""
+
+    def __init__(
+        self,
+        bootstrap_servers,
+        topic,
+        compression_type=None,
+        message_size=None,
+        batch_size=None,
+        waiting_time=None,
+    ):
+        """Initializes the producer."""
+        # Allow passing bootstrap_servers or fallback to environment default
+        import os
+        self.bootstrap_servers = bootstrap_servers or os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+        self.topic = topic
+        self.producer_conf = {
+            "bootstrap.servers": self.bootstrap_servers,
+            "partitioner": "random",
+        }
+
+        if compression_type:
+            self.producer_conf["compression.type"] = compression_type
+        if message_size:
+            self.producer_conf["message.max.bytes"] = message_size
+        if batch_size:
+            self.producer_conf["batch.size"] = batch_size
+        if waiting_time:
+            self.producer_conf["linger.ms"] = waiting_time
+
+        self.producer = Producer(self.producer_conf)
+
+    def send_message(self, message):
+        """Sends a message to Kafka.
+
+        Args:
+            message (str): Message to send.
+        """
+        try:
+            self.producer.produce(self.topic, message)
+            # self.producer.flush()
+            logging.info(f"Message sent to topic {self.topic}: {message}")
+        except Exception as e:
+            logging.error(f"Error sending message: {e}")
+
+    def commit(self):
+        """Commit the message."""
+        self.producer.flush()
+        logging.info("Messages committed to Kafka.")
+
 
 if __name__ == "__main__":
-    run_producer()
+    utils.load_env()
+    utils.configure_logging()
+    
+    bootstrap_servers = "localhost:9092"#os.environ.get("KAFKA_BOOTSTRAP_SERVERS")
+    topic = "flights" #os.environ.get("KAFKA_TOPIC")
+    #schema_url = os.environ.get("SCHEMA_URL")
+
+    admin = Admin(bootstrap_servers)
+    producer = ProducerClass(bootstrap_servers, topic)
+    admin.create_topic(topic)
+
+    try:
+        while True:
+            message = input("Enter any message: ")
+            producer.send_message(message)
+    except KeyboardInterrupt:
+        pass
+
+    producer.commit()

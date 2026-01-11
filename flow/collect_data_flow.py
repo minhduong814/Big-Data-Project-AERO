@@ -88,7 +88,7 @@ def data_collection_flow_optimized(
     
     logger.info(f"📋 Total tasks: {len(tasks)}")
     print(f"📋 Total tasks: {len(tasks)}")
-    
+        
     failed_downloads = []
     completed = 0
     
